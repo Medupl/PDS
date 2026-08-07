@@ -1,9 +1,65 @@
-\section{Projeto do filtro}
-\label{sec:metodologia}
+\chapter{Projeto do filtro}
+\label{cap:metodologia}
 
-\subsection{De onde saem as especificações}
+Dados fornecidos pelo enunciado, reunidos na Tabela~\ref{tab:dados}.
 
-O enunciado já entrega os números principais, mas vale dizer de onde cada um vem, porque nem todos estão na tabela de dados.
+\begin{table}[htb]
+\centering
+\caption{Dados fornecidos pelo enunciado.}
+\label{tab:dados}
+\begin{tabular}{ll}
+\hline
+\textbf{Parâmetro} & \textbf{Valor} \\
+\hline
+Taxa de amostragem $F_s$ & $1{,}92$~MHz \\
+Fator de decimação & $4$ (nova taxa: $480$~kHz) \\
+Passagem & até $100$~kHz \\
+Rejeição & a partir de $200$~kHz (canal adjacente) \\
+Ondulação na passagem & $0{,}1$~dB \\
+Atenuação na rejeição & $60$~dB \\
+\hline
+\end{tabular}
+\fonte{Autoria própria.}
+\end{table}
+
+Todas as verificações são feitas sobre o mesmo sinal de teste, gerado pelo código da Figura~\ref{fig:codigo-sinal}. Ele soma quatro parcelas: o canal útil em $30$~kHz com amplitude $1$ e uma modulação lenta de amplitude, o canal adjacente em $200$~kHz com amplitude $8$, o interferente em $450$~kHz com amplitude $6$ e um ruído complexo de baixo nível. A semente do gerador é fixada para que o sinal seja o mesmo em todas as execuções.
+
+\begin{figure}[htb]
+\centering
+\caption{Geração do sinal de teste.}
+\label{fig:codigo-sinal}
+\begin{minipage}{0.9\linewidth}
+\begin{verbatim}
+import numpy as np
+
+Fs = 1920000
+D  = 4
+np.random.seed(9)
+t = np.arange(0, 4e-3, 1/Fs)
+util  = np.exp(1j*2*np.pi*30000*t)
+util *= (1 + 0.3*np.sin(2*np.pi*5000*t))
+adj   = 8.0*np.exp(1j*2*np.pi*200000*t)
+alias = 6.0*np.exp(1j*2*np.pi*450000*t)
+ruido = 0.01*(np.random.randn(len(t)) + 1j*np.random.randn(len(t)))
+x = util + adj + alias + ruido
+\end{verbatim}
+\end{minipage}
+\fonte{Dados do projeto.}
+\end{figure}
+
+A Figura~\ref{fig:sinal} mostra esse sinal no tempo e no espectro. No tempo, as partes real (I) e imaginária (Q) dão uma forma de onda embaralhada, com picos passando de $15$, e o canal útil é invisível no meio dela, porque tem amplitude $1$ contra vizinhos de amplitude $8$ e $6$. No espectro, tomando o canal útil como referência de $0$~dB, cada componente aparece separada na sua frequência: o canal adjacente em $200$~kHz chega $18{,}06$~dB acima do útil, e o interferente em $450$~kHz chega $15{,}56$~dB acima.
+
+\begin{figure}[htb]
+\centering
+\caption{Sinal recebido em banda base: no tempo (acima) e no espectro (abaixo), com $0$~dB tomado no canal útil.}
+\includegraphics[width=\linewidth]{Imagens/fig01_sinal_recebido.png}
+\label{fig:sinal}
+\fonte{Autoria própria.}
+\end{figure}
+
+Esses dois números são o que o projeto precisa vencer. O filtro não tem apenas que atenuar, tem que atenuar o suficiente para derrubar interferentes que chegam mais fortes que o próprio sinal de interesse. É daí que sai a atenuação de projeto de $75{,}56$~dB, tratada na Seção~\ref{sec:atenuacao}.
+
+\section{Especificações}
 
 A faixa de passagem vai até $100$~kHz simplesmente porque é essa a banda que o canal útil ocupa ($\pm 100$~kHz em torno de zero). A faixa de rejeição começa em $200$~kHz porque é ali que está o canal vizinho, o primeiro sinal que não queremos deixar passar. Entre um e outro sobra uma faixa de transição de $100$~kHz, que é o espaço que o filtro tem para sair do ganho $1$ e chegar perto de zero.
 
@@ -15,7 +71,7 @@ Como o projeto é feito em tempo discreto, as frequências precisam ser normaliz
 \end{equation}
 
 \begin{equation}
-\Delta\omega = \omega_s - \omega_p = 0{,}3272 \ \mathrm{rad/amostra}.
+\Delta\omega = \omega_s - \omega_p = 0{,}3273 \ \mathrm{rad/amostra}.
 \end{equation}
 
 As tolerâncias de amplitude saem das duas exigências em decibéis. Na passagem, o ganho pode variar $0{,}1$~dB de pico a pico, o que dá
@@ -32,17 +88,25 @@ e na rejeição a atenuação de $60$~dB corresponde a
 \delta_2 = 10^{-60/20} = 0{,}001 .
 \end{equation}
 
-\subsection{Uma especificação que não está na tabela}
+\section{Escolha do tipo de filtro e do método de projeto}
 
-Aqui aparece o detalhe mais importante do projeto, e ele não está escrito na lista de dados fornecidos.
+Quanto à fase e ao atraso de grupo, o classificador de modulação decide sobre a constelação I/Q, onde a informação está na amplitude e na fase. Um IIR tem fase não linear, o atraso de grupo varia com a frequência e a constelação sai distorcida. Um FIR de coeficientes simétricos garante fase exatamente linear e atraso de grupo constante, e o sinal inteiro é apenas atrasado, sem deformação. Por isso o tipo escolhido foi o FIR passa-baixas de fase linear.
 
-O critério de aprovação pede que o interferente de $450$~kHz, depois de dobrar sobre o canal, fique $60$~dB \textbf{abaixo} do canal útil. Só que, no sinal de teste, esse interferente tem amplitude $6$ enquanto o canal útil tem amplitude $1$. Ou seja, ele já chega
+Dentro dos FIR de fase linear, a escolha foi $k = 0$ com $M$ ímpar, o que corresponde ao Tipo I. É a combinação que dá atraso de grupo constante e inteiro em amostras e não impõe restrição de ganho em nenhuma frequência, que é justamente o que um passa-baixas precisa.
+
+Quanto ao método de projeto, entre as janelas vistas na disciplina a Kaiser é a única que ajusta o parâmetro $\beta$ a partir da atenuação exigida, entregando o menor comprimento possível dentro do método. A comparação com as janelas de atenuação fixa está no Capítulo~\ref{cap:desenvolvimento}.
+
+Sobre o custo, o FIR exige $93$ coeficientes, contra ordem $6$ de um IIR elíptico projetado para a mesma máscara. A diferença parece grande, mas o filtro vem antes de uma decimação por $4$: na forma polifásica apenas uma em cada quatro saídas é calculada, e o custo real cai por um fator próximo de $4$. Além disso, obter fase linear com um IIR exigiria um equalizador de fase adicional, que devolveria em ordem o que o IIR tinha economizado. Na prática, o custo extra do FIR é inexistente.
+
+\section{Dimensionamento e parâmetros obtidos}
+
+O critério pede que o interferente de $450$~kHz, depois de dobrar sobre o canal, fique $60$~dB \textbf{abaixo} do canal útil. Só que ele não parte do mesmo nível: com amplitude $6$ contra $1$ do canal útil, chega
 
 \begin{equation}
 20\log_{10}(6) = 15{,}56 \ \mathrm{dB}
 \end{equation}
 
-\textbf{acima} do sinal que queremos. Para ele terminar $60$~dB abaixo, o filtro não pode atenuar $60$~dB — precisa atenuar
+\textbf{acima} do sinal que queremos. Para terminar $60$~dB abaixo, o filtro não pode atenuar $60$~dB, precisa atenuar
 
 \begin{equation}
 A = 60 + 15{,}56 = 75{,}56 \ \mathrm{dB}
@@ -53,17 +117,7 @@ na região de $450$~kHz. Esse é o valor que realmente dimensiona o filtro. Proj
 
 Vale notar que o canal adjacente, apesar de entrar ainda mais forte ($20\log_{10}(8) = 18{,}06$~dB acima do útil), é menos exigente: ele fica fora do canal depois da decimação, então basta a rejeição de $60$~dB pedida no enunciado.
 
-\subsection{Por que um FIR com janela de Kaiser}
-
-O bloco seguinte da cadeia é um classificador que decide olhando a constelação I/Q, ou seja, olhando amplitude e fase dos símbolos. Se o filtro atrasar cada frequência de um jeito diferente, os pontos da constelação saem do lugar e se espalham, e o classificador erra. Um filtro FIR com coeficientes simétricos resolve isso de graça: a fase dele é uma reta e o atraso é o mesmo para todas as frequências. O sinal sai apenas deslocado no tempo, sem deformação.
-
-Um filtro IIR teria ordem bem menor, mas a fase dele não é linear, e ainda por cima ele não se decompõe em forma polifásica (o motivo está detalhado na Seção~\ref{sec:conceitual}). Por isso a escolha foi o FIR.
-
-Entre os métodos de janelamento, a janela de Kaiser é a única com um parâmetro ajustável. As janelas fixas entregam sempre a mesma atenuação — retangular $21$~dB, Hanning $44$~dB, Hamming $53$~dB, Blackman $74$~dB — então ou não atendem o que precisamos, ou atendem com sobra e cobram coeficientes a mais por isso. Na Kaiser, o parâmetro $\beta$ é calculado a partir da atenuação exigida, e o filtro sai com o menor comprimento possível dentro do método.
-
-\subsection{As contas do projeto}
-
-O procedimento seguido é o dos slides da disciplina. Com $\delta = \delta_2$ e a atenuação de projeto da Equação~\eqref{eq:atenuacao-projeto}, calcula-se primeiro o parâmetro da janela, que para $A > 50$~dB vale
+Com a atenuação de projeto fechada, o filtro pode ser dimensionado. O procedimento seguido é o dos slides da disciplina. Com $\delta = \delta_2$ e a atenuação da Equação~\eqref{eq:atenuacao-projeto}, calcula-se primeiro o parâmetro da janela, que para $A > 50$~dB vale
 
 \begin{equation}
 \beta = 0{,}1102\,(A - 8{,}7) = 7{,}3683 ,
@@ -107,17 +161,7 @@ I_0(x) = 1 + \sum_{k=1}^{\infty}\left[\frac{(x/2)^k}{k!}\right]^2 ,
 
 que converge rápido: para $\beta = 7{,}37$ os termos já caem abaixo de $10^{-11}$ por volta do vigésimo, então uma soma com poucas dezenas de termos dá precisão de máquina.
 
-A Figura~\ref{fig:projeto} mostra o resultado dessas contas. No canto superior esquerdo está a janela, que vale quase zero nas bordas e $1$ no centro. No canto superior direito aparece o filtro ideal (tracejado) e o filtro final (cheio): a janela vai suavizando as oscilações da ponta, e é isso que derruba os lóbulos laterais. Embaixo, à esquerda, a resposta em frequência já pronta contra a máscara de especificação, e à direita um zoom da faixa de passagem mostrando que a ondulação é muito menor que o limite.
-
-\begin{figure}[htb]
-\centering
-\caption{Etapas do projeto: janela de Kaiser, resposta ao impulso e verificação contra a máscara de especificação.}
-\includegraphics[width=\linewidth]{Imagens/fig02_projeto_filtro.png}
-\label{fig:projeto}
-\fonte{Autoria própria.}
-\end{figure}
-
-Os parâmetros obtidos estão reunidos na Tabela~\ref{tab:parametros}.
+Os parâmetros obtidos estão reunidos na Tabela~\ref{tab:parametros}, e o resultado gráfico dessas contas é analisado na Seção~\ref{sec:resposta}.
 
 \begin{table}[htb]
 \centering
