@@ -1,0 +1,109 @@
+%%
+%% Customizações do abnTeX2 (http://abnTeX2.googlecode.com)
+%% This work may be distributed and/or modified under the
+%% conditions of the LaTeX Project Public License, either version 1.3
+%% of this license or (at your option) any later version.
+%% The latest version of this license is in
+%%   http://www.latex-project.org/lppl.txt
+%% and version 1.3 or later is part of all distributions of LaTeX
+%% version 2005/12/01 or later.
+
+\ProvidesPackage{abntex2novopacote}%[03/2019 Criacao desta customizacao do abnTeX2]
+
+% alterando a capa
+\renewcommand{\imprimircapa}{%
+  \begin{capa}%
+    \center
+    \begin{figure}
+    \center
+    \includegraphics[width=2.5cm]{Imagens/ufcg_logo.png}
+    \end{figure}
+    \ABNTEXchapterfont\large{UNIVERSIDADE FEDERAL DE CAMPINA GRANDE\\UNIDADE ACADÊMICA DE ENGENHARIA ELÉTRICA - UAEE \\ CENTRO DE ENGENHARIA ELÉTRICA E INFORMÁTICA - CEEI \\ CURSO DE ENGENHARIA ELÉTRICA – DEE}
+    
+    
+
+    \vfill
+    \begin{center}
+    \MakeUppercase{\ABNTEXchapterfont\bfseries\LARGE\imprimirtitulo}
+    \end{center}
+    \vfill
+
+    \vspace{0.5cm}
+    \small \imprimirpreambulo
+    \vfill
+    
+    \large\imprimirautor
+    \vfill
+    
+    \large\imprimirlocal
+
+    \large\imprimirdata
+    
+    \vspace*{1cm}
+  \end{capa}
+}
+
+
+% folha de rosto 
+
+\makeatletter
+
+\renewcommand{\folhaderostocontent}{
+\begin{center}
+\ABNTEXchapterfont\large{UNIVERSIDADE FEDERAL DE CAMPINA GRANDE\\UNIDADE ACADÊMICA DE ENGENHARIA ELÉTRICA - UAEE \\ CENTRO DE ENGENHARIA ELÉTRICA E INFORMÁTICA - CEEI \\ CURSO DE ENGENHARIA ELÉTRICA – DEE}
+    
+    \vspace*{4cm}
+    
+\MakeUppercase{\ABNTEXchapterfont\bfseries\Large\imprimirtitulo}
+
+\vspace*{\fill}\vspace*{\fill}
+
+\begin{center}
+\ABNTEXchapterfont\large\imprimirautor
+\end{center}
+
+\vspace*{\fill}
+
+\abntex@ifnotempty{\imprimirpreambulo}{%
+  \hspace{.45\textwidth}
+  \begin{minipage}{.5\textwidth}
+  \SingleSpacing
+  \imprimirpreambulo
+  \end{minipage}%
+  \vspace*{\fill}
+}%
+
+\end{center}
+{\large\imprimirorientadorRotulo~\imprimirorientador\par}
+
+\abntex@ifnotempty{\imprimircoorientador}{%
+  {\noindent\large\imprimircoorientadorRotulo~\imprimircoorientador}%
+}%
+
+\vspace*{\fill}
+
+\begin{center}
+{\large\imprimirlocal}
+
+\par
+
+{\large\imprimirdata}
+\vspace*{1cm}
+\end{center}
+}
+
+% ==========================================================
+% CORREÇÃO: FORÇAR TÍTULO DO CAPÍTULO NA MESMA LINHA E MAIÚSCULO
+% ==========================================================
+\makeatletter
+\def\@makechapterhead#1{%
+  {\noindent\ABNTEXchapterfont\bfseries\LARGE
+  \ifnum \c@secnumdepth >\m@ne
+      \thechapter\space\space % Imprime o número e dois espaços
+  \fi
+  \MakeUppercase{#1}\par\nobreak % Converte o título para maiúsculas
+  \vspace{\baselineskip}}
+}
+\makeatother
+
+\makeatother
