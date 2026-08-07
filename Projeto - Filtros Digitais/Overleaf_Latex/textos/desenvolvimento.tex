@@ -1,54 +1,86 @@
-\section{Decimação, aliasing e folding: o perigo dos 450 kHz}
-\label{sec:aliasing}
+\chapter{Especificações do Sinal e Requisitos do Projeto}
+\label{cap:desenvolvimento}
 
-\subsection{O que a decimação faz com o espectro}
+\section{Decimação}
 
-Decimar por um fator $M = 4$ significa manter uma a cada quatro amostras do sinal. Pelo teorema da amostragem, a nova taxa $F_s' = F_s/4 = 480$~kHz só representa sem ambiguidade frequências até a nova frequência de Nyquist:
+Decimar por um fator $M = 4$ é manter uma a cada quatro amostras do sinal. A taxa passa a ser $F_s' = F_s/4 = 480$~kHz e, pelo teorema da amostragem, essa nova taxa só representa sem ambiguidade as frequências até a nova frequência de Nyquist:
 
 \begin{equation}
 f_{\mathrm{Nyq}}' = \frac{F_s'}{2} = 240 \text{ kHz}.
 \end{equation}
 
-No domínio da frequência, a decimação faz o espectro se repetir a cada $F_s' = 480$~kHz. Qualquer componente situada acima de $240$~kHz não desaparece com a operação — ela dobra (\textit{folding}) para dentro da faixa representável, sobrepondo-se ao sinal legítimo. As imagens de uma componente originalmente em uma frequência $f$ aparecem em
+No domínio da frequência, a decimação faz o espectro se repetir a cada $480$~kHz. Uma componente acima de $240$~kHz não desaparece com a operação, ela dobra para dentro da faixa representável e se soma ao sinal legítimo, e a posição em que a componente reaparece é dada por:
 
 \begin{equation}
 f_{\mathrm{alias}} = f - k \cdot F_s', \qquad k \in \mathbb{Z},
 \label{eq:folding}
 \end{equation}
 
-para o valor inteiro de $k$ que traz $f_{\mathrm{alias}}$ para dentro do novo intervalo de Nyquist.
+onde $k$ é o inteiro que traz $f_{\mathrm{alias}}$ para dentro do novo intervalo de Nyquist.
 
-\subsection{A conta do interferente}
+\section{O interferente}
 
-Aplicando a Equação~\eqref{eq:folding} ao interferente do cenário, em $450$~kHz, com $k = 1$:
+Aplicando a Equação~\eqref{eq:folding} ao interferente de $450$~kHz:
 
 \begin{equation}
 f_{\mathrm{alias}} = 450 - 480 = -30 \text{ kHz}.
 \end{equation}
 
-Como o espectro é simétrico em módulo, o interferente reaparece em $\pm 30$~kHz — bem no meio do canal útil de $\pm 100$~kHz. O ponto crucial é que o \textit{aliasing} é \textbf{irreversível}: após a decimação, o interferente dobrado em $30$~kHz torna-se matematicamente indistinguível de um componente legítimo do sinal na mesma frequência, e nenhum processamento posterior é capaz de separá-los. Por essa razão, o filtro deve, obrigatoriamente, ser aplicado \emph{antes} do decimador.
+Como o espectro é simétrico em módulo, o interferente reaparece em $\pm 30$~kHz, bem no meio do canal útil de $\pm 100$~kHz.
 
-A Figura~\ref{fig:diagrama-aliasing} ilustra o mecanismo. Antes da decimação, o interferente ocupa uma posição bem afastada do canal útil. Depois, ele reaparece dentro da faixa protegida, ao lado do sinal que se deseja receber.
+O problema é que esse dobramento é irreversível. Depois da decimação, a componente que caiu em $-30$~kHz fica indistinguível de um conteúdo legítimo do sinal naquela mesma frequência, e nenhum processamento posterior consegue separar os dois. É por isso que o filtro tem que vir antes do decimador, e não depois.
 
-\begin{figure}[htb]
-\centering
-\caption{Dobramento do interferente de $450$~kHz sobre o canal útil ao decimar por $4$.}
-\includegraphics[width=\linewidth]{Imagens/fig00_aliasing_diagrama.png}
-\label{fig:diagrama-aliasing}
-\fonte{Autoria própria.}
-\end{figure}
+\newpage
+\section{A condição de anti-aliasing e a dupla função do filtro}
 
-\subsection{A condição de anti-aliasing e a dupla função do filtro}
-
-Para proteger o canal de $\pm 100$~kHz ao decimar por $4$, o filtro precisa atenuar todas as faixas espectrais que dobram sobre ele:
+Para proteger o canal de $\pm 100$~kHz ao decimar por $4$, o filtro precisa atenuar todas as faixas que dobram sobre ele:
 
 \begin{equation}
 k \cdot 480 \pm 100 \text{ kHz}, \qquad k = 1, 2, \dots
 \label{eq:faixas-proibidas}
 \end{equation}
 
-isto é, os intervalos de $380$ a $580$~kHz, de $860$ a $960$~kHz, e assim por diante.
+ou seja, os intervalos de $380$ a $580$~kHz, de $860$ a $960$~kHz, e assim por diante.
 
-Há aqui uma elegância de projeto digna de nota: como a banda de rejeição exigida pela seleção de canal já começa em $200$~kHz --- necessária para bloquear o canal adjacente ---, todas as faixas críticas de \textit{aliasing} dadas pela Equação~\eqref{eq:faixas-proibidas} ficam automaticamente cobertas. O filtro de seleção de canal \emph{é} o filtro de anti-\textit{aliasing}: a decimação não impõe nenhuma exigência adicional sobre a máscara de projeto.
+É aqui que as duas exigências se encontram. A banda de rejeição da seleção de canal já começa em $200$~kHz, porque é ali que está o canal adjacente. Como ela começa bem antes de $380$~kHz, todas as faixas críticas da Equação~\eqref{eq:faixas-proibidas} ficam cobertas automaticamente. O filtro de seleção de canal é, ao mesmo tempo, o filtro de anti-aliasing, e a decimação não acrescenta nenhuma exigência à máscara de projeto.
 
-Cabe ainda uma observação: o canal adjacente, centrado em $200$~kHz, situa-se abaixo da nova frequência de Nyquist ($240$~kHz) e, portanto, não sofre \textit{aliasing}. Sua rejeição é exigida por outro motivo — ele constitui interferência co-canal para o classificador de modulação —, e não por risco de dobramento espectral.
+O canal adjacente, centrado em $200$~kHz, está abaixo da nova Nyquist de $240$~kHz e por isso não sofre aliasing. Ele precisa ser rejeitado porque é interferência dentro da mesma faixa para o classificador de modulação, e não por risco de dobramento espectral.
+
+\section{Fase linear e a constelação I/Q}
+
+O bloco que recebe o sinal depois do filtro é um classificador de modulação, e ele decide olhando a constelação I/Q, onde a informação está na amplitude e na fase de cada símbolo. Isso cria uma exigência sobre o filtro que não aparece na tabela de dados do enunciado: ele não pode distorcer a fase dentro do canal.
+
+A fase de um filtro diz quanto cada frequência é atrasada. Quando a fase é linear, o atraso de grupo é constante e todas as componentes do canal atrasam a mesma quantidade de amostras. O sinal sai apenas deslocado no tempo, e a constelação chega ao classificador com o mesmo formato que tinha na entrada.
+
+Quando a fase não é linear, o atraso de grupo varia com a frequência e cada componente chega em um instante diferente. O símbolo não se recompõe no ponto certo: os pontos da constelação giram e se espalham de forma dependente da frequência, e parte da energia de um símbolo invade o intervalo do símbolo seguinte. No lugar de posições bem definidas, o classificador recebe uma nuvem de pontos e erra a decisão. Isso acontece mesmo com a magnitude perfeitamente dentro da máscara, porque o problema não está em quanto cada frequência é atenuada, e sim em quanto cada uma é atrasada.
+
+Um FIR de coeficientes simétricos resolve isso por construção. A simetria torna a fase exatamente linear e o atraso de grupo constante, igual a $(M-1)/2$ amostras. Um IIR atenderia a mesma máscara com ordem bem menor, mas tem fase não linear, e corrigir essa fase exigiria um equalizador adicional que anularia a economia de ordem. Além disso, o IIR não se decompõe em forma polifásica. Por isso a escolha foi o FIR.
+
+A ondulação na faixa de passagem age do mesmo modo, só que sobre a amplitude. Se o ganho oscila dentro do canal, as amplitudes dos símbolos saem deformadas e os pontos da constelação se deslocam em raio. É por isso que o limite de $0{,}1$~dB é apertado: uma passagem plana entrega ao classificador o sinal como ele chegou.
+
+\section{A escolha da janela de Kaiser}
+
+Definido o FIR, falta escolher o método de projeto. As janelas fixas entregam sempre a mesma atenuação, qualquer que seja a exigência do projeto. A Tabela~\ref{tab:janelas} reúne os valores típicos.
+
+\begin{table}[htb]
+\centering
+\caption{Atenuação típica de cada janela.}
+\label{tab:janelas}
+\begin{tabular}{ll}
+\hline
+\textbf{Janela} & \textbf{Atenuação típica} \\
+\hline
+Retangular & $21$~dB \\
+Hanning & $44$~dB \\
+Hamming & $53$~dB \\
+Blackman & $74$~dB \\
+Kaiser & ajustável \\
+\hline
+\end{tabular}
+\fonte{Autoria própria.}
+\end{table}
+
+A rejeição de $60$~dB pedida no enunciado já descarta a retangular, a Hanning e a Hamming, que não chegam a esse valor. A Blackman passa, mas entrega sempre os mesmos $74$~dB, e uma atenuação fixa tem dois problemas: quando sobra, o excesso é pago em coeficientes a mais; quando o projeto exige mais do que ela oferece, não há como ajustar.
+
+A Kaiser é a única com um parâmetro ajustável. O $\beta$ é calculado a partir da atenuação exigida, então o filtro entrega exatamente o necessário com o menor comprimento possível dentro do método.
+w
